@@ -1,4 +1,5 @@
 #include <Servo.h>
+#include <SimpleExpressions.h>
 
 Servo neck;
 Servo head;
@@ -9,9 +10,13 @@ const int headStop = 130;
 const int neckStart = 45;
 const int neckStop = 120;
 
-int trigPin = 11;      // Trigger
-int echoPin = 12;      // Echo
-const int buzzer = 10; //buzzer to arduino pin 9
+const int magnetSensorPin = 8;
+const int shakeSensorPin = 9;
+const int buzzer = 10; //buzzer to arduino pin 10
+const int trigPin = 11;      // Trigger
+const int echoPin = 12;      // Echo
+const int ledPin = 13;
+
 long duration, cm, inches;
 
 enum State
@@ -39,6 +44,9 @@ void lonely();
 void fear();
 void love();
 void changeState(State nextState);
+void playWalleSound();
+void playWhineSound();
+void ledPulseRed();
 Sensor readSensor();
 
 State state = START;
@@ -51,12 +59,17 @@ void setup()
   //Serial Port begin
   Serial.begin(9600);
 
+  SimpleExpressions.init(ledPin, buzzer);
+
+
   neck.attach(10);
   head.attach(11);
 
   //Define inputs and outputs
   pinMode(trigPin, OUTPUT);
   pinMode(echoPin, INPUT);
+  pinMode(shakeSensorPin, INPUT);
+  pinMode(magnetSensorPin, INPUT);
 }
 
 void loop()
@@ -192,4 +205,16 @@ Sensor readSensor()
 int calculateServoPosition(duration, start, stop)
 {
   return (int)(sin(millis * 2 / duration) + start) * stop;
+}
+
+void playWalleSound() {
+  SimpleExpressions.playSound(0);
+}
+
+void playWhineSound() {
+  SimpleExpressions.playSound(1);
+}
+
+void ledPulseRed() {
+}
 }
