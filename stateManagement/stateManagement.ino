@@ -5,10 +5,10 @@
 Servo neck;
 Servo head;
 
-const int headStart = 50;
-const int headStop = 130;
+const int headStart = 80;
+const int headStop = 100;
 
-const int neckStart = 45;
+const int neckStart = 35;
 const int neckStop = 120;
 
 const int magnetSensorPin = A0;
@@ -23,10 +23,10 @@ Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, ledPin, NEO_RGBW + NEO_K
 
 enum State
 {
-  START,
-  LONELY,
-  FEAR,
-  LOVE
+  START, //0
+  LONELY, //1
+  FEAR,  //2
+  LOVE  //3
 };
 
 enum Sensor
@@ -38,6 +38,7 @@ enum Sensor
 };
 
 const int distanceShortThreshold = 15;
+const int distanceLongThreshold = 100;
 
 void state_machine_run(Sensor sensor);
 void normal();
@@ -55,23 +56,32 @@ int startNewStatemillis = 0;
 
 long fading = 0;
 
+int counterShort = 0;
+int counterLong = 0;
+int lastCm = 0;
+
 void setup()
 {
   //Serial Port begin
   Serial.begin(9600);
-  
+
   pixels.begin(); // This initializes the NeoPixel library.
 
   SimpleExpressions.init(ledPin, buzzer);
 
-  neck.attach(10);
-  head.attach(11);
+  neck.attach(9);
+  head.attach(10);
 
   //Define inputs and outputs
   pinMode(trigPin, OUTPUT);
   pinMode(echoPin, INPUT);
   pinMode(magnetSensorPin, INPUT);
 }
+
+double neckRotation = 0;
+double headRotation = 0;
+
+long counter = 0;
 
 void loop()
 {
@@ -82,36 +92,45 @@ void state_machine_run(Sensor sensor)
 {
   switch (state)
   {
-  case START:
-    for(int i=0;i<NUMPIXELS;i++){
-      pixels.setPixelColor(i, pixels.Color(0,0,0,0));
-    }
-    pixels.show();
-    if (sensor == DISTANCE_SENSOR_LONG)
-    {
-      lastInteraction = millis();
-    }
-    else if (sensor == DISTANCE_SENSOR_SHORT)
-    {
-      changeState(FEAR);
-      SimpleExpressions.playSound(10);
-    }
-    else if (sensor == EVE_SENSOR)
-    {
-      changeState(LOVE);
-      SimpleExpressions.playSound(12);
-    }
-    else if (millis() - startNewStatemillis > 5000) {
-      changeState(LONELY);
-      SimpleExpressions.playSound(16);
-    }
-    else
-    {
-      normal();
-    }
-    break;
-    
-  case LOVE:
+    case START:
+      for (int i = 0; i < NUMPIXELS; i++) {
+        pixels.setPixelColor(i, pixels.Color(0, 0, 0, 0));
+      }
+      pixels.show();
+      if (sensor == DISTANCE_SENSOR_LONG)
+      {
+        lastInteraction = millis();
+        for (int i = 0; i < NUMPIXELS; i++) {
+          pixels.setPixelColor(i, pixels.Color(0, random(255), random(255), random(255))); // Red color.
+        }
+        pixels.show();
+        delay(500);
+      }
+      else if (sensor == DISTANCE_SENSOR_SHORT)
+      {
+        changeState(FEAR);
+        SimpleExpressions.playSound(10);
+      }
+      else if (sensor == EVE_SENSOR)
+      {
+        changeState(LOVE);
+        SimpleExpressions.playSound(12);
+      }
+      else if (millis() - lastInteraction > 5000) {
+        changeState(LONELY);
+        SimpleExpressions.playSound(16);
+        for (int i = 0; i < NUMPIXELS; i++) {
+          pixels.setPixelColor(i, pixels.Color(0, 0, 255, 0)); // Red color.
+        }
+        pixels.show(); // This sends the updated pixel color to the hardware.
+      }
+      else
+      {
+        normal();
+      }
+      break;
+
+    case LOVE:
       if (sensor == EVE_SENSOR)
       {
         love();
@@ -121,28 +140,28 @@ void state_machine_run(Sensor sensor)
         changeState(START);
       }
       break;
-      
-  case LONELY:
-    if (sensor == NONE)
-    {
-      lonely();
-    }
-    else
-    {
-      changeState(START);
-    }
-    break;
 
-  case FEAR:
-    if (sensor == DISTANCE_SENSOR_SHORT)
-    {
-      fear();
-    }
-    else
-    {
-      changeState(START);
-    }
-    break;
+    case LONELY:
+      if (sensor == NONE)
+      {
+        lonely();
+      }
+      else
+      {
+        changeState(START);
+      }
+      break;
+
+    case FEAR:
+      if (sensor == DISTANCE_SENSOR_SHORT)
+      {
+        fear();
+      }
+      else
+      {
+        changeState(START);
+      }
+      break;
   }
 }
 
@@ -150,37 +169,35 @@ void changeState(State s)
 {
   state = s;
   startNewStatemillis = millis();
+  lastInteraction = millis();
+  for (int i = 0; i < NUMPIXELS; i++) {
+        pixels.setPixelColor(i, pixels.Color(0, 0, 0, 0));
+  }
+  pixels.show();
 }
 
 void normal()
 {
-  const int length = 10 * 1000;
-  const int pause = 10 * 1000;
-  if (millis() % (length + pause) > length)
-  {
-    //Serial.println(calculateServoPosition(length, headStart, headStop));
-  }
-  if (millis() % (length + pause / 2) < 20 && millis() - lastInteraction > 1000)
-  {
-    lastInteraction = millis();
-  }
+  delay(10);
 }
 
 void lonely()
 {
-  const int time = 5000;
-  //Serial.println(calculateServoPosition(time, headStart, headStop));
-  //Serial.println(calculateServoPosition(time, neckStart, neckStop));
+  Serial.println(calculateServoPosition(neckRotation, neckStart, neckStop));
+  neck.write(calculateServoPosition(neckRotation, neckStart, neckStop));
+  head.write(calculateServoPosition(headRotation, headStart, headStop));
+  neckRotation += 0.005;
+  headRotation += 0.01;
 }
 
 void fear()
 {
-  for(int i=0;i<NUMPIXELS;i++){
-    if(fading % 2 == 0) {
-      pixels.setPixelColor(i, pixels.Color(0,255,0,0)); // Red color.
+  for (int i = 0; i < NUMPIXELS; i++) {
+    if (fading % 2 == 0) {
+      pixels.setPixelColor(i, pixels.Color(0, 255, 0, 0)); // Red color.
     }
     else {
-      pixels.setPixelColor(i, pixels.Color(0,0,0,0));
+      pixels.setPixelColor(i, pixels.Color(0, 0, 0, 0));
     }
   }
   pixels.show(); // This sends the updated pixel color to the hardware.
@@ -191,14 +208,14 @@ void fear()
 void love()
 {
   long redValue = fading;
-  for(int i=0;i<NUMPIXELS;i++){
-    if((fading / 255) % 2 == 0) {
+  for (int i = 0; i < NUMPIXELS; i++) {
+    if ((fading / 255) % 2 == 0) {
       redValue = 255 - fading % 255;
     }
     else {
       redValue = fading % 255;
     }
-     pixels.setPixelColor(i, pixels.Color(0,redValue,0,0)); // Red color.
+    pixels.setPixelColor(i, pixels.Color(0, redValue, 0, 0)); // Red color.
   }
   pixels.show(); // This sends the updated pixel color to the hardware.
   fading += 1;
@@ -208,24 +225,36 @@ Sensor readSensor()
 {
   // read Eve sensor
   int magnetVal = analogRead(magnetSensorPin);
-  if(magnetVal <= 10) {
+  if (magnetVal <= 10) {
     return EVE_SENSOR;
   }
-  
+
   digitalWrite(trigPin, LOW);
   delayMicroseconds(5);
   digitalWrite(trigPin, HIGH);
   delayMicroseconds(10);
   digitalWrite(trigPin, LOW);
 
-  long duration = pulseIn(echoPin, HIGH);
-  long cm = (duration / 2) * 0.0343;
 
-  if (cm < distanceShortThreshold)
+  long duration = pulseIn(echoPin, HIGH, 4000);
+  long cm = (duration / 2) * 0.0343;
+  
+  if (cm < distanceShortThreshold && cm > 3)
   {
-    return DISTANCE_SENSOR_SHORT;
-  } else if (cm < 100) {
-    return DISTANCE_SENSOR_LONG;
+    counterShort += 1;
+    counterLong = 0;
+    if (counterShort > 25){
+      return DISTANCE_SENSOR_SHORT;
+    }
+  } else if (cm < distanceLongThreshold && cm > distanceShortThreshold) 
+  {
+    counterLong += 1;
+    counterShort = 0;
+    if (counterLong > 25)
+      return DISTANCE_SENSOR_LONG;
+  } else {
+    counterShort = 0;
+    counterLong = 0;
   }
 
   // read shake sensor
@@ -233,7 +262,7 @@ Sensor readSensor()
   return NONE;
 }
 
-int calculateServoPosition(int duration, int start, int stop)
+double calculateServoPosition(double duration, int start, int stopR)
 {
-  return (int)(sin(millis() * 2 / duration) + start) * stop;
+  return (sin(duration) + 1) * (stopR - start) / 2 + start;
 }
