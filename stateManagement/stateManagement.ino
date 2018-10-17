@@ -100,23 +100,24 @@ void state_machine_run(Sensor sensor)
       if (sensor == DISTANCE_SENSOR_LONG)
       {
         lastInteraction = millis();
+        uint32_t rand = pixels.Color(0, random(200, 255), random(100), random(100));
         for (int i = 0; i < NUMPIXELS; i++) {
-          pixels.setPixelColor(i, pixels.Color(0, random(255), random(255), random(255))); // Red color.
+          pixels.setPixelColor(i, rand); // Red color.
         }
         pixels.show();
-        delay(500);
+        delay(100);
       }
       else if (sensor == DISTANCE_SENSOR_SHORT)
       {
         changeState(FEAR);
-        SimpleExpressions.playSound(10);
+        SimpleExpressions.playSound(9);
       }
       else if (sensor == EVE_SENSOR)
       {
         changeState(LOVE);
         SimpleExpressions.playSound(12);
       }
-      else if (millis() - lastInteraction > 5000) {
+      else if (millis() - lastInteraction > 10000) {
         changeState(LONELY);
         SimpleExpressions.playSound(16);
         for (int i = 0; i < NUMPIXELS; i++) {
@@ -171,14 +172,14 @@ void changeState(State s)
   startNewStatemillis = millis();
   lastInteraction = millis();
   for (int i = 0; i < NUMPIXELS; i++) {
-        pixels.setPixelColor(i, pixels.Color(0, 0, 0, 0));
+    pixels.setPixelColor(i, pixels.Color(0, 0, 0, 0));
   }
   pixels.show();
 }
 
 void normal()
 {
-  delay(10);
+  delay(70);
 }
 
 void lonely()
@@ -225,7 +226,7 @@ Sensor readSensor()
 {
   // read Eve sensor
   int magnetVal = analogRead(magnetSensorPin);
-  if (magnetVal <= 10) {
+  if (magnetVal <= 300) {
     return EVE_SENSOR;
   }
 
@@ -238,19 +239,19 @@ Sensor readSensor()
 
   long duration = pulseIn(echoPin, HIGH, 4000);
   long cm = (duration / 2) * 0.0343;
-  
+
   if (cm < distanceShortThreshold && cm > 3)
   {
     counterShort += 1;
     counterLong = 0;
-    if (counterShort > 25){
+    if (counterShort > 5) {
       return DISTANCE_SENSOR_SHORT;
     }
-  } else if (cm < distanceLongThreshold && cm > distanceShortThreshold) 
+  } else if (cm < distanceLongThreshold && cm > distanceShortThreshold)
   {
     counterLong += 1;
     counterShort = 0;
-    if (counterLong > 25)
+    if (counterLong > 5)
       return DISTANCE_SENSOR_LONG;
   } else {
     counterShort = 0;
